@@ -13,12 +13,3 @@ services:
       POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - data:/data
-
-  api:
-    image: cagodoy/dfp-synchronizer:0.0.1
-    ports:
-      - 3000:3000
-    env_file:
-      - .env
-    links:
-      - postgres

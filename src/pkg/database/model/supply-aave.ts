@@ -1,14 +1,19 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from "typeorm";
-import { Transaction, TransactionType, TokenType } from "../../../sychronizer";
+import { Transaction, TransactionType, TokenType, Network } from "../../../synchronizer";
 
 @Entity({
-  name: "SupplyAave",
+  name: "supply_aave",
 })
 export class SupplyAaveModel {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column()
+  network: Network;
+
+  @Column({
+    unique: true,
+  })
   hash: string;
 
   @Column()
@@ -26,8 +31,10 @@ export class SupplyAaveModel {
   @Column({ name: "contract" })
   contract: string;
 
-  @Column()
-  amount: number;
+  @Column({
+    type: "text",
+  })
+  amount: string;
 
   // TODO(ca): check if this column are required
   @Column({
@@ -40,18 +47,20 @@ export class SupplyAaveModel {
   createdAt: Date;
 
   public from(t: Transaction): void {
+    this.network = t.network;
     this.hash = t.hash;
     this.block = t.block;
     this.type = t.type;
     this.wallet = t.wallet;
     this.contract = t.contract;
-    this.amount = t.amount;
+    this.amount = t.amount.toString();
     this.token = t.token;
   }
 
   public to(): Transaction {
     return {
       id: this.id,
+      network: this.network,
       hash: this.hash,
       block: this.block,
       type: this.type,
@@ -59,7 +68,7 @@ export class SupplyAaveModel {
       contract: this.contract,
       amount: this.amount,
       token: this.token,
-      createdAt: this.createdAt,
+      createdAt: this.createdAt.getTime(),
     };
   }
 }

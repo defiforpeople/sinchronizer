@@ -1,4 +1,4 @@
-import { Transaction, TransactionType, Wallet } from "../../sychronizer";
+import { Network, Transaction, TransactionType, Wallet } from "../../synchronizer";
 import * as model from "./model";
 import { ERROR_MSG_NOT_INITIALIZED, IDatabase } from "./type";
 import { DataSource } from "typeorm";
@@ -59,7 +59,7 @@ export class Database implements IDatabase {
     return parsed;
   }
 
-  public async depositsByContractId(wallet: string, contract: string): Promise<Transaction[]> {
+  public async listDeposits(network: Network, wallet: string, contract: string): Promise<Transaction[]> {
     // check if class are correctly initialized
     if (!this.ready) {
       throw new Error(ERROR_MSG_NOT_INITIALIZED);
@@ -68,6 +68,7 @@ export class Database implements IDatabase {
     // find inside database deposit transactions by wallet and contract addres
     const savedTransactions = await this.dataSource.manager.find(model.SupplyAaveModel, {
       where: {
+        network,
         wallet,
         contract,
         type: TransactionType.Deposit,
@@ -80,7 +81,7 @@ export class Database implements IDatabase {
     return transactions;
   }
 
-  public async withdrawsByContractId(wallet: string, contract: string): Promise<Transaction[]> {
+  public async listWithdraws(network: Network, wallet: string, contract: string): Promise<Transaction[]> {
     // check if class are correctly initialized
     if (!this.ready) {
       throw new Error(ERROR_MSG_NOT_INITIALIZED);
@@ -89,6 +90,7 @@ export class Database implements IDatabase {
     // find inside database withdraw transactions by wallet and contract address
     const savedTransactions = await this.dataSource.manager.find(model.SupplyAaveModel, {
       where: {
+        network,
         wallet,
         contract,
         type: TransactionType.Withdraw,
@@ -101,35 +103,42 @@ export class Database implements IDatabase {
     return transactions;
   }
 
-  public async listWallets(): Promise<string[]> {
+  public async listWallets(network: Network): Promise<string[]> {
     if (!this.ready) {
       throw new Error(ERROR_MSG_NOT_INITIALIZED);
     }
 
     // find inside database all wallets
     // TOOD(ca): implement COUNT using SQL builder
-    const wallets = await this.dataSource.manager.find(model.WalletModel);
+    const wallets = await this.dataSource.manager.find(model.WalletModel, {
+      where: {
+        network,
+      },
+    });
     const walletsAddrs = [...new Set(wallets.map((w) => w.address))];
 
     return walletsAddrs;
   }
 
-  public async login(address: string): Promise<Wallet> {
+  public async login(network: Network, address: string): Promise<Wallet> {
     // check if class are correctly initialized
     if (!this.ready) {
       throw new Error(ERROR_MSG_NOT_INITIALIZED);
     }
 
-    // prepare wallet db model before and then insert into the db
+    // prepare wallet db model
     const wallet = new model.WalletModel();
+    wallet.network = network;
     wallet.address = address;
+
+    // insert wallet into the db
     const saved = await this.dataSource.manager.save(model.WalletModel, wallet);
     const parsed = saved.to();
 
     return parsed;
   }
 
-  public async listTransactionsByHashes(hashes: string[]): Promise<Transaction[]> {
+  public async listTransactionsByHashes(network: Network, hashes: string[]): Promise<Transaction[]> {
     // check if class are correctly initialized
     if (!this.ready) {
       throw new Error(ERROR_MSG_NOT_INITIALIZED);
@@ -137,14 +146,14 @@ export class Database implements IDatabase {
 
     // get and parse transactions from db
     const transactions = await this.dataSource.manager.find(model.SupplyAaveModel, {
-      where: hashes.map((h) => ({ hash: h })),
+      where: hashes.map((h) => ({ network, hash: h })),
     });
     const parsed = transactions.map((t) => t.to());
 
     return parsed;
   }
 
-  public async getLastTransactionByType(type: TransactionType): Promise<Transaction> {
+  public async getLastTransactionByType(network: Network, type: TransactionType): Promise<Transaction> {
     // check if class are correctly initialized
     if (!this.ready) {
       throw new Error(ERROR_MSG_NOT_INITIALIZED);
@@ -153,6 +162,7 @@ export class Database implements IDatabase {
     // get latest transaction from db by transaction type
     const last = await this.dataSource.manager.findOne(model.SupplyAaveModel, {
       where: {
+        network,
         type,
       },
       order: {
